@@ -27,45 +27,48 @@
         .rank-number { color: #fdcb6e; font-weight: bold; font-size: 30px; width: 50px; }
         .rank-score { color: #00cec9; font-weight: bold; }
 
+        /* 計時器樣式 */
+        #timerBox { font-size: 40px; font-weight: bold; color: #e17055; margin: 10px 0; }
+
         input, button, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-size: 18px; font-weight: bold; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         .option-btn { background: #0984e3; height: 80px; font-size: 22px; margin: 5px 0; }
         
         h1 { color: var(--dark); }
         #questionText { font-size: 32px; margin-top: 20px; }
-        .score-setup { display: flex; gap: 10px; text-align: left; margin-bottom: 10px; }
-        .score-setup div { flex: 1; }
-        #pFeedback { font-size: 20px; font-weight: bold; margin-top: 10px; }
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: left; margin-bottom: 10px; }
+        #pFeedback { font-size: 24px; font-weight: bold; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<!-- 1. 初始化設定區 (僅 role=host 可見) -->
 <div id="setupView" class="main-screen" style="max-width: 800px; margin: 0 auto; display: none;">
     <h1>⚙️ 遊戲設定</h1>
-    
-    <!-- 新增分數設定區 -->
-    <div class="score-setup">
+    <div class="setup-grid">
         <div>
-            <label>🥇 第一名答對得分：</label>
+            <label>🥇 第一名得分：</label>
             <input type="number" id="scoreFirst" value="100">
         </div>
         <div>
             <label>🥈 之後答對得分：</label>
             <input type="number" id="scoreOthers" value="50">
         </div>
+        <div>
+            <label>⏱️ 每題秒數：</label>
+            <input type="number" id="qSeconds" value="15">
+        </div>
     </div>
 
     <label>📝 題目 JSON 格式：</label>
     <textarea id="quizJson" rows="8">
 [
-  { "q": "這是什麼動物？", "a": ["貓", "狗", "水豚", "鴨子"], "ans": 2, "img": "https://upload.wikimedia.org/wikipedia/commons/3/34/Capybara_Haliaeetus_leucocephalus.jpg" },
-  { "q": "這張圖片是在哪裡拍的？", "a": ["台北", "東京", "巴黎", "倫敦"], "ans": 0, "img": "https://picsum.photos/600/400" }
+  { "q": "第一題：這是什麼動物？", "a": ["貓", "狗", "水豚", "鴨子"], "ans": 2, "img": "https://upload.wikimedia.org/wikipedia/commons/3/34/Capybara_Haliaeetus_leucocephalus.jpg" },
+  { "q": "第二題：這張圖片是在哪裡拍的？", "a": ["台北", "東京", "巴黎", "倫敦"], "ans": 0, "img": "https://picsum.photos/600/400" }
 ]</textarea>
     <button onclick="initGame()">初始化遊戲並產生 QR Code</button>
 </div>
 
-<!-- 2. 主辦人大螢幕畫面 -->
 <div id="gameView" class="hidden">
     <div class="game-layout">
         <div class="main-screen">
@@ -75,6 +78,7 @@
                 <p>請掃描上方條碼進入玩家頁面</p>
             </div>
             <div id="playingContent" class="hidden">
+                <div id="timerBox">時間：<span id="timeLeft">--</span></div>
                 <h1 id="questionText">準備開始...</h1>
                 <img id="qImage" src="" class="hidden">
             </div>
@@ -89,7 +93,6 @@
     </div>
 </div>
 
-<!-- 3. 玩家端介面 -->
 <div id="playerView" class="main-screen hidden" style="max-width: 500px; margin: 0 auto;">
     <h1 id="pTitle">加入遊戲</h1>
     <div id="loginSection">
@@ -97,9 +100,9 @@
         <button onclick="joinGame()">確認進入</button>
     </div>
     <div id="pGameSection" class="hidden">
-        <h2 id="pQText">等待主辦人出題...</h2>
+        <h2 id="pQText">等待出題...</h2>
         <div id="pOptions"></div>
-        <div id="pFeedback"></div> <!-- 用於顯示答錯提示而非彈窗 -->
+        <div id="pFeedback"></div>
     </div>
 </div>
 
@@ -107,23 +110,23 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getDatabase, ref, set, onValue, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // --- ⚠️ 重要：請務必在此貼上你的 Firebase Config ---
+    // --- ⚠️ Firebase Config ---
     const firebaseConfig = {
-         apiKey: "AIzaSyAs6--EbwPBYvnVAitaBmc0A544EKROsQo",
-  	 authDomain: "partyquizgame-230c0.firebaseapp.com",
-  	 databaseURL: "https://partyquizgame-230c0-default-rtdb.asia-southeast1.firebasedatabase.app",
-  	 projectId: "partyquizgame-230c0",
-  	 storageBucket: "partyquizgame-230c0.firebasestorage.app",
-  	 messagingSenderId: "535024175289",
-  	 appId: "1:535024175289:web:df35278f18620c974ff368"
+        apiKey: "AIzaSyAs6--EbwPBYvnVAitaBmc0A544EKROsQo",
+        authDomain: "partyquizgame-230c0.firebaseapp.com",
+        databaseURL: "https://partyquizgame-230c0-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "partyquizgame-230c0",
+        storageBucket: "partyquizgame-230c0.firebasestorage.app",
+        messagingSenderId: "535024175289",
+        appId: "1:535024175289:web:df35278f18620c974ff368"
     };
-    // ------------------------------------------------
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role');
     let myName = "";
+    let timerInterval = null;
 
     if (role === 'host') {
         document.getElementById('setupView').style.display = 'block';
@@ -131,40 +134,63 @@
         document.getElementById('playerView').classList.remove('hidden');
     }
 
+    // [主辦人] 初始化
     window.initGame = function() {
         try {
             const quizData = JSON.parse(document.getElementById('quizJson').value);
             const s1 = parseInt(document.getElementById('scoreFirst').value);
             const s2 = parseInt(document.getElementById('scoreOthers').value);
+            const sec = parseInt(document.getElementById('qSeconds').value);
             
-            // 將設定存入資料庫
             set(ref(db, 'game'), { 
-                status: 'waiting', 
-                currentQ: -1, 
-                quiz: quizData,
-                config: { s1: s1, s2: s2 } 
+                status: 'waiting', currentQ: -1, quiz: quizData,
+                config: { s1: s1, s2: s2, sec: sec },
+                timeLeft: sec
             });
             set(ref(db, 'answers'), {});
             set(ref(db, 'scores'), {});
             
             document.getElementById('setupView').style.display = 'none';
             document.getElementById('gameView').classList.remove('hidden');
-
             const joinUrl = window.location.origin + window.location.pathname;
             document.getElementById("qrcode").innerHTML = "";
             new QRCode(document.getElementById("qrcode"), { text: joinUrl, width: 256, height: 256 });
-        } catch (e) { alert("JSON 格式錯誤，請檢查符號。"); }
+        } catch (e) { alert("JSON 格式錯誤"); }
     };
 
+    // [主辦人] 下一題 & 啟動計時
     window.nextQuestion = async function() {
-        const snap = await get(ref(db, 'game/currentQ'));
-        const nextIdx = (snap.val() ?? -1) + 1;
-        set(ref(db, 'answers'), {});
-        set(ref(db, 'game/currentQ'), nextIdx);
-        set(ref(db, 'game/status'), 'playing');
+        clearInterval(timerInterval);
+        const gameSnap = await get(ref(db, 'game'));
+        const gameData = gameSnap.val();
+        const nextIdx = (gameData.currentQ ?? -1) + 1;
+        
+        if (nextIdx >= gameData.quiz.length) {
+            set(ref(db, 'game/status'), 'ended');
+            return;
+        }
+
+        const initialSec = gameData.config.sec;
+        await set(ref(db, 'answers'), {}); 
+        await set(ref(db, 'game/status'), 'playing');
+        await set(ref(db, 'game/currentQ'), nextIdx);
+        await set(ref(db, 'game/timeLeft'), initialSec);
+
+        // 主辦人端負責跑計時器並同步到 Firebase
+        let localTime = initialSec;
+        timerInterval = setInterval(() => {
+            localTime--;
+            set(ref(db, 'game/timeLeft'), localTime);
+            if (localTime <= 0) {
+                clearInterval(timerInterval);
+                set(ref(db, 'game/status'), 'timeout');
+            }
+        }, 1000);
+
         document.getElementById('nextBtn').innerText = "下一題";
     };
 
+    // [玩家] 加入
     window.joinGame = function() {
         myName = document.getElementById('playerName').value.trim();
         if (!myName) return alert("請輸入名字");
@@ -173,68 +199,100 @@
         document.getElementById('pTitle').innerText = "玩家: " + myName;
     };
 
+    // [同步監聽]
     onValue(ref(db, 'game'), (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
-        if (role === 'host' && data.currentQ >= 0) {
-            document.getElementById('qrcodeContainer').classList.add('hidden');
-            document.getElementById('playingContent').classList.remove('hidden');
-            const q = data.quiz[data.currentQ];
-            if (q) {
-                document.getElementById('questionText').innerText = q.q;
-                const imgEl = document.getElementById('qImage');
-                if (q.img) { imgEl.src = q.img; imgEl.classList.remove('hidden'); }
-                else { imgEl.classList.add('hidden'); }
-            } else {
-                document.getElementById('questionText').innerText = "遊戲結束！";
-                document.getElementById('qImage').classList.add('hidden');
+        // 更新大螢幕秒數
+        if (role === 'host') {
+            document.getElementById('timeLeft').innerText = data.timeLeft;
+            if (data.currentQ >= 0) {
+                document.getElementById('qrcodeContainer').classList.add('hidden');
+                document.getElementById('playingContent').classList.remove('hidden');
+                const q = data.quiz[data.currentQ];
+                if (q) {
+                    document.getElementById('questionText').innerText = q.q;
+                    const imgEl = document.getElementById('qImage');
+                    if (q.img) { imgEl.src = q.img; imgEl.classList.remove('hidden'); }
+                    else { imgEl.classList.add('hidden'); }
+                }
             }
+            if (data.status === 'ended') document.getElementById('questionText').innerText = "遊戲結束！";
         }
 
-        if (role !== 'host' && data.status === 'playing') {
-            const q = data.quiz[data.currentQ];
-            if (q) {
-                document.getElementById('pQText').innerText = q.q;
-                document.getElementById('pFeedback').innerText = ""; // 重設反饋文字
-                let html = "";
-                q.a.forEach((opt, idx) => {
-                    html += `<button class="option-btn" onclick="submitAnswer(${idx})">${opt}</button>`;
+        // 玩家畫面
+        if (role !== 'host') {
+            const feedbackEl = document.getElementById('pFeedback');
+            if (data.status === 'playing') {
+                const q = data.quiz[data.currentQ];
+                // 檢查是否已經答過
+                get(ref(db, `answers/${data.currentQ}_${myName}`)).then(ansSnap => {
+                    if (ansSnap.exists()) return; // 答過就保持目前的狀態
+
+                    document.getElementById('pQText').innerText = `倒數 ${data.timeLeft} 秒`;
+                    let html = "";
+                    q.a.forEach((opt, idx) => {
+                        html += `<button class="option-btn" onclick="submitAnswer(${idx})">${opt}</button>`;
+                    });
+                    document.getElementById('pOptions').innerHTML = html;
+                    feedbackEl.innerText = "";
                 });
-                document.getElementById('pOptions').innerHTML = html;
+            } else if (data.status === 'timeout') {
+                document.getElementById('pOptions').innerHTML = "";
+                if (feedbackEl.innerText === "") {
+                    feedbackEl.style.color = "orange";
+                    feedbackEl.innerText = "⏰ 時間到！無法再回答";
+                }
             }
         }
     });
 
+    // [玩家] 提交答案
     window.submitAnswer = async function(idx) {
-        const snap = await get(ref(db, 'game'));
-        const game = snap.val();
+        const gameSnap = await get(ref(db, 'game'));
+        const game = gameSnap.val();
+        if (game.status !== 'playing') return;
+
+        const qIdx = game.currentQ;
         const feedbackEl = document.getElementById('pFeedback');
 
-        if (idx === game.quiz[game.currentQ].ans) {
-            const ansRef = push(ref(db, 'answers'));
-            await set(ansRef, { name: myName, time: Date.now() });
+        // 鎖定：先寫入「已作答」標記，防止連點或補答
+        const myAnsRef = ref(db, `answers/${qIdx}_${myName}`);
+        const alreadyAns = await get(myAnsRef);
+        if (alreadyAns.exists()) return; 
+        
+        // 標記已回答（防止補答）
+        await set(myAnsRef, { choice: idx });
+        document.getElementById('pOptions').innerHTML = ""; // 立即清空按鈕
+
+        if (idx === game.quiz[qIdx].ans) {
+            // 答對邏輯：計算名次
+            const allAnsSnap = await get(ref(db, 'answers'));
+            const allAns = allAnsSnap.val() || {};
+            // 計算這題有多少人已經答對 (這裡用簡單計數)
+            let correctCount = 0;
+            Object.keys(allAns).forEach(key => {
+                if (key.startsWith(qIdx + "_") && allAns[key].isCorrect) correctCount++;
+            });
             
-            const allAns = (await get(ref(db, 'answers'))).val();
-            const count = Object.keys(allAns).length;
-            
-            // 從資料庫 config 抓取分數設定
-            const s1 = game.config ? game.config.s1 : 100;
-            const s2 = game.config ? game.config.s2 : 50;
-            const points = (count === 1) ? s1 : s2;
-            
+            const points = (correctCount === 0) ? game.config.s1 : game.config.s2;
+            await set(ref(db, `answers/${qIdx}_${myName}/isCorrect`), true);
+
             const sRef = ref(db, `scores/${myName}`);
             const curS = (await get(sRef)).val() || 0;
             set(sRef, curS + points);
-            document.getElementById('pOptions').innerHTML = `<h2 style='color:green'>✅ 答對了！<br>獲得 ${points} 分</h2>`;
-            feedbackEl.innerText = "";
+
+            feedbackEl.style.color = "green";
+            feedbackEl.innerText = "✅ 答對了！請等待下一題";
         } else {
-            // 答錯時顯示紅字，不跳彈窗
+            // 答錯邏輯
             feedbackEl.style.color = "red";
-            feedbackEl.innerText = "❌ 答錯囉，再試試看！";
+            feedbackEl.innerText = "❌ 答錯了！此題無法再補答";
         }
     };
 
+    // [排行榜]
     onValue(ref(db, 'scores'), (snapshot) => {
         if (role !== 'host') return;
         const scores = snapshot.val() || {};
