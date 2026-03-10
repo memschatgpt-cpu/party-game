@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 派對搶答王</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --primary: #6c5ce7; --secondary: #fab1a0; --bg: #f9f9f9; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 600px; text-align: center; }
+        .hidden { display: none; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:active { transform: scale(0.98); }
+        .option-btn { background: #0984e3; margin: 5px 0; }
+        #qrcode { display: flex; justify-content: center; margin: 20px 0; }
+        .rank-list { text-align: left; background: #eee; padding: 10px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1 id="title">🎉 載入中...</h1>
+    
+    <!-- 1. 設定區 (僅主辦人可見) -->
+    <div id="hostSetup" class="hidden">
+        <textarea id="quizJson" rows="5" placeholder='範例題目格式：[{"q":"1+1?","a":["1","2","3"],"ans":1}]'></textarea>
+        <input type="number" id="score1" placeholder="第一名得分 (例如 100)" value="100">
+        <input type="number" id="score2" placeholder="後續得分 (例如 50)" value="50">
+        <button onclick="initGame()">初始化並產生 QR Code</button>
+        <div id="qrcode"></div>
+        <div id="hostControl" class="hidden">
+            <button style="background:#00b894" onclick="nextQuestion()">開始/下一題</button>
+            <div id="rankDisplay" class="rank-list"></div>
+        </div>
+    </div>
+
+    <!-- 2. 玩家登入區 -->
+    <div id="playerLogin" class="hidden">
+        <input type="text" id="playerName" placeholder="輸入你的暱稱">
+        <button onclick="joinGame()">加入遊戲</button>
+    </div>
+
+    <!-- 3. 遊戲進行區 (同步顯示題目或按鈕) -->
+    <div id="gamePlay" class="hidden">
+        <h2 id="questionText">等待主辦人出題...</h2>
+        <div id="options"></div>
+        <p id="feedback"></p>
+    </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, push, remove, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // --- 請在此處貼上你的 Firebase Config ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyAs6--EbwPBYvnVAitaBmc0A544EKROsQo",
+  	authDomain: "partyquizgame-230c0.firebaseapp.com",
+  	databaseURL: "https://partyquizgame-230c0-default-rtdb.asia-southeast1.firebasedatabase.app",
+  	projectId: "partyquizgame-230c0",
+  	storageBucket: "partyquizgame-230c0.firebasestorage.app",
+  	messagingSenderId: "535024175289",
+  	appId: "1:535024175289:web:df35278f18620c974ff368"
+    };
+    // ---------------------------------------
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const urlParams = new URLSearchParams(window.location.search);
+    const role = urlParams.get('role'); // 'host' or null
+    let myName = "";
+
+    // 初始化介面
+    if (role === 'host') {
+        document.getElementById('title').innerText = "主辦人後台";
+        document.getElementById('hostSetup').classList.remove('hidden');
+    } else {
+        document.getElementById('title').innerText = "玩家準備區";
+        document.getElementById('playerLogin').classList.remove('hidden');
+    }
+
+    // [主辦人邏輯] 初始化遊戲
+    window.initGame = function() {
+        const raw = document.getElementById('quizJson').value;
+        const quizData = JSON.parse(raw || '[{"q":"測試題：1+1=?","a":["1","2","3"],"ans":1}]');
+        set(ref(db, 'game'), {
+            status: 'waiting',
+            currentQ: -1,
+            quiz: quizData,
+            config: { 
+                s1: parseInt(document.getElementById('score1').value), 
+                s2: parseInt(document.getElementById('score2').value) 
+            }
+        });
+        set(ref(db, 'answers'), {}); // 清空回答
+        set(ref(db, 'scores'), {});  // 清空總分
+        
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), window.location.href.split('?')[0]);
+        document.getElementById('hostControl').classList.remove('hidden');
+    };
+
+    window.nextQuestion = async function() {
+        const snap = await get(ref(db, 'game/currentQ'));
+        const nextIdx = (snap.val() ?? -1) + 1;
+        set(ref(db, 'answers'), {}); // 每題清空搶答紀錄
+        set(ref(db, 'game/currentQ'), nextIdx);
+        set(ref(db, 'game/status'), 'playing');
+    };
+
+    // [玩家邏輯] 加入遊戲
+    window.joinGame = function() {
+        myName = document.getElementById('playerName').value;
+        if (!myName) return alert("請輸入名字");
+        document.getElementById('playerLogin').classList.add('hidden');
+        document.getElementById('gamePlay').classList.remove('hidden');
+        document.getElementById('title').innerText = "準備好了：" + myName;
+    };
+
+    // [核心同步邏輯] 監聽遊戲狀態
+    onValue(ref(db, 'game'), (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        if (data.status === 'playing') {
+            const q = data.quiz[data.currentQ];
+            if (!q) {
+                document.getElementById('questionText').innerText = "遊戲結束！";
+                document.getElementById('options').innerHTML = "";
+                return;
+            }
+            document.getElementById('questionText').innerText = q.q;
+            
+            // 玩家端顯示按鈕
+            if (role !== 'host') {
+                let html = "";
+                q.a.forEach((opt, idx) => {
+                    html += `<button class="option-btn" onclick="submitAnswer(${idx})">${opt}</button>`;
+                });
+                document.getElementById('options').innerHTML = html;
+                document.getElementById('feedback').innerText = "";
+            }
+        }
+    });
+
+    // [玩家邏輯] 提交答案
+    window.submitAnswer = function(idx) {
+        get(ref(db, 'game')).then(async (snap) => {
+            const game = snap.val();
+            const correct = game.quiz[game.currentQ].ans;
+            
+            if (idx === correct) {
+                const ansRef = ref(db, 'answers');
+                const newAns = push(ansRef);
+                await set(newAns, { name: myName, time: Date.now() });
+                
+                // 計算得分
+                const allAnsSnap = await get(ref(db, 'answers'));
+                const count = Object.keys(allAnsSnap.val()).length;
+                const points = (count === 1) ? game.config.s1 : game.config.s2;
+                
+                // 更新總分
+                const scoreRef = ref(db, `scores/${myName}`);
+                const currentScore = (await get(scoreRef)).val() || 0;
+                set(scoreRef, currentScore + points);
+                
+                document.getElementById('options').innerHTML = "✅ 答對了！等待下一題...";
+            } else {
+                document.getElementById('feedback').innerText = "❌ 答錯了，再想想！";
+            }
+        });
+    };
+
+    // [主辦人邏輯] 即時顯示排名
+    onValue(ref(db, 'scores'), (snapshot) => {
+        if (role !== 'host') return;
+        const scores = snapshot.val();
+        if (!scores) return;
+        let html = "<h3>即時排行榜：</h3>";
+        Object.entries(scores).sort((a,b) => b[1] - a[1]).forEach(([name, score]) => {
+            html += `<div>${name}: ${score} 分</div>`;
+        });
+        document.getElementById('rankDisplay').innerHTML = html;
+    });
+
+</script>
+</body>
+</html>
