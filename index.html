@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>豪華版 派對搶答王</title>
+    <title>豪華修正版 派對搶答王</title>
     <!-- 引入 QR Code 產生庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
@@ -11,96 +11,99 @@
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
         .hidden { display: none !important; }
         
-        /* 佈局：左邊題目，右邊排行 */
-        .game-layout { display: flex; gap: 20px; max-width: 1400px; margin: 0 auto; align-items: flex-start; }
-        .main-screen { flex: 2; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; min-height: 500px; }
-        .side-screen { flex: 1; background: var(--dark); color: white; padding: 25px; border-radius: 20px; min-height: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        /* 佈局設計 */
+        .game-layout { display: flex; gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .main-screen { flex: 2; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; min-height: 600px; }
+        .side-screen { flex: 1; background: var(--dark); color: white; padding: 20px; border-radius: 20px; min-height: 600px; }
 
-        /* QR Code 樣式修正 */
-        #qrcode { padding: 20px; background: white; display: inline-block; border-radius: 10px; margin: 20px auto; }
-        #qrcode img { margin: 0 auto; border: 5px solid white; }
+        /* QR Code 修正樣式 */
+        #qrcode { 
+            padding: 20px; 
+            background: white; 
+            display: inline-block; 
+            border-radius: 10px; 
+            margin: 20px auto; 
+            border: 1px solid #ddd;
+        }
+        #qrcode img { margin: 0 auto; }
         
         /* 圖片樣式 */
-        #qImage { max-width: 100%; max-height: 400px; border-radius: 15px; margin: 20px auto; display: block; object-fit: contain; border: 2px solid #eee; }
+        #qImage { max-width: 100%; max-height: 350px; border-radius: 15px; margin: 20px auto; display: block; object-fit: contain; }
         
         /* 排行榜樣式 */
-        .rank-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #444; font-size: 26px; }
-        .rank-number { color: #fdcb6e; font-weight: bold; font-size: 32px; width: 50px; }
-        .rank-name { flex-grow: 1; margin-left: 10px; }
+        .rank-item { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #444; font-size: 24px; align-items: center; }
+        .rank-number { color: #fdcb6e; font-weight: bold; font-size: 30px; width: 50px; }
         .rank-score { color: #00cec9; font-weight: bold; }
 
-        /* 按鈕與輸入框 */
-        input, button, textarea { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #ddd; font-size: 18px; box-sizing: border-box; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        button:hover { opacity: 0.9; transform: translateY(-2px); }
-        .option-btn { background: #0984e3; height: 90px; font-size: 24px; margin: 10px 0; }
+        input, button, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-size: 18px; font-weight: bold; }
+        .option-btn { background: #0984e3; height: 80px; font-size: 22px; margin: 5px 0; }
         
-        h1 { color: #2d3436; margin-bottom: 20px; }
-        #questionText { font-size: 36px; margin: 20px 0; color: #2d3436; }
+        h1 { color: var(--dark); }
+        #questionText { font-size: 32px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<!-- 1. 設定區：僅主辦人 (?role=host) 可見 -->
-<div id="setupView" class="main-screen hidden" style="max-width: 800px; margin: 0 auto;">
-    <h1>⚙️ 遊戲初始化設定</h1>
-    <p>請輸入題目 JSON 格式 (包含 img 欄位可顯示圖片)：</p>
+<!-- 1. 初始化設定區 (僅 role=host 可見) -->
+<div id="setupView" class="main-screen" style="max-width: 800px; margin: 0 auto; display: none;">
+    <h1>⚙️ 遊戲設定</h1>
     <textarea id="quizJson" rows="10">
 [
-  { "q": "第一題：這是什麼動物？", "a": ["貓", "狗", "水豚", "鴨子"], "ans": 2, "img": "https://upload.wikimedia.org/wikipedia/commons/3/34/Capybara_Haliaeetus_leucocephalus.jpg" },
-  { "q": "第二題：這張圖片的地點在哪？", "a": ["台北", "東京", "巴黎", "倫敦"], "ans": 0, "img": "https://picsum.photos/600/400" },
-  { "q": "第三題：誰是今天最帥的人？", "a": ["壽星", "主辦人", "掃碼的人", "以上皆是"], "ans": 3 }
+  { "q": "這是什麼動物？", "a": ["貓", "狗", "水豚", "鴨子"], "ans": 2, "img": "https://upload.wikimedia.org/wikipedia/commons/3/34/Capybara_Haliaeetus_leucocephalus.jpg" },
+  { "q": "這張圖片是在哪裡拍的？", "a": ["台北", "東京", "巴黎", "倫敦"], "ans": 0, "img": "https://picsum.photos/600/400" }
 ]</textarea>
-    <button onclick="initGame()">完成設定並產生 QR Code</button>
+    <button onclick="initGame()">初始化遊戲並產生 QR Code</button>
 </div>
 
-<!-- 2. 主辦人遊戲畫面 (大螢幕投放用) -->
+<!-- 2. 主辦人大螢幕畫面 -->
 <div id="gameView" class="hidden">
     <div class="game-layout">
-        <!-- 左側：內容區 -->
         <div class="main-screen">
+            <!-- QR Code 容器 -->
             <div id="qrcodeContainer">
-                <h1>🎉 準備開賽！掃碼加入</h1>
+                <h2>掃描 QR Code 加入搶答</h2>
                 <div id="qrcode"></div>
-                <p>請大家掃描上方 QR Code 並輸入暱稱</p>
+                <p>請掃描上方條碼進入玩家頁面</p>
             </div>
 
+            <!-- 題目內容 -->
             <div id="playingContent" class="hidden">
-                <h1 id="questionText">題目載入中...</h1>
+                <h1 id="questionText">準備開始...</h1>
                 <img id="qImage" src="" class="hidden">
             </div>
 
-            <div id="hostControls" style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
-                <button id="nextBtn" onclick="nextQuestion()" style="background: #00b894; width: 250px;">開始第一題 / 下一題</button>
+            <div id="hostControls" style="margin-top: 30px;">
+                <button id="nextBtn" onclick="nextQuestion()" style="background:#00b894; width: 200px;">開始第一題</button>
             </div>
         </div>
 
-        <!-- 右側：排行榜 -->
+        <!-- 排行榜 -->
         <div class="side-screen">
-            <h2 style="text-align: center; color: #fdcb6e; font-size: 32px;">🏆 即時排行榜</h2>
+            <h2 style="text-align: center; color: #fdcb6e;">🏆 即時排行榜</h2>
             <div id="rankList"></div>
         </div>
     </div>
 </div>
 
-<!-- 3. 玩家手機畫面 -->
+<!-- 3. 玩家端介面 -->
 <div id="playerView" class="main-screen hidden" style="max-width: 500px; margin: 0 auto;">
-    <h1 id="pTitle">📱 準備搶答</h1>
+    <h1 id="pTitle">加入遊戲</h1>
     <div id="loginSection">
-        <input type="text" id="playerName" placeholder="請輸入您的暱稱" maxlength="10">
-        <button onclick="joinGame()">確認進入遊戲</button>
+        <input type="text" id="playerName" placeholder="輸入你的暱稱">
+        <button onclick="joinGame()">確認進入</button>
     </div>
     <div id="pGameSection" class="hidden">
-        <h2 id="pQText" style="color: #636e72;">等待主辦人出題...</h2>
+        <h2 id="pQText">等待主辦人出題...</h2>
         <div id="pOptions"></div>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push, get, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { getDatabase, ref, set, onValue, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    // --- 【請在此處替換為你的 Firebase Config】 ---
+    // --- ⚠️ 重要：請務必在此貼上你的 Firebase Config ---
     const firebaseConfig = {
         apiKey: "AIzaSyAs6--EbwPBYvnVAitaBmc0A544EKROsQo",
   	authDomain: "partyquizgame-230c0.firebaseapp.com",
@@ -110,17 +113,18 @@
   	messagingSenderId: "535024175289",
   	appId: "1:535024175289:web:df35278f18620c974ff368"
     };
-    // ----------------------------------------------
+
+    // ------------------------------------------------
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const urlParams = new URLSearchParams(window.location.search);
-    const role = urlParams.get('role'); // host or null
+    const role = urlParams.get('role');
     let myName = "";
 
-    // 介面路由切換
+    // 初始化身份顯示
     if (role === 'host') {
-        document.getElementById('setupView').classList.remove('hidden');
+        document.getElementById('setupView').style.display = 'block';
     } else {
         document.getElementById('playerView').classList.remove('hidden');
     }
@@ -133,74 +137,73 @@
             set(ref(db, 'answers'), {});
             set(ref(db, 'scores'), {});
             
-            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('setupView').style.display = 'none';
             document.getElementById('gameView').classList.remove('hidden');
 
-            // 產生 QR Code (導向不帶參數的本頁)
-            document.getElementById("qrcode").innerHTML = "";
-            const pureUrl = window.location.origin + window.location.pathname;
+            // 修正 QR Code 網址邏輯：獲取當前頁面不含參數的網址
+            const joinUrl = window.location.origin + window.location.pathname;
+            document.getElementById("qrcode").innerHTML = ""; // 先清空
             new QRCode(document.getElementById("qrcode"), {
-                text: pureUrl,
-                width: 300,
-                height: 300
+                text: joinUrl,
+                width: 256,
+                height: 256
             });
         } catch (e) {
-            alert("JSON 格式出錯囉！請檢查逗號或引號。");
+            alert("JSON 格式錯誤，請檢查符號。");
         }
     };
 
-    // [主辦人] 下一題邏輯
+    // [主辦人] 切換題目
     window.nextQuestion = async function() {
         const snap = await get(ref(db, 'game/currentQ'));
         const nextIdx = (snap.val() ?? -1) + 1;
-        
-        await set(ref(db, 'answers'), {}); // 清空上一題答案紀錄
-        await set(ref(db, 'game/currentQ'), nextIdx);
-        await set(ref(db, 'game/status'), 'playing');
-        
+        set(ref(db, 'answers'), {});
+        set(ref(db, 'game/currentQ'), nextIdx);
+        set(ref(db, 'game/status'), 'playing');
         document.getElementById('nextBtn').innerText = "下一題";
     };
 
-    // [玩家] 登入遊戲
+    // [玩家] 登入
     window.joinGame = function() {
         myName = document.getElementById('playerName').value.trim();
-        if (!myName) return alert("請輸入名字！");
+        if (!myName) return alert("請輸入名字");
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('pGameSection').classList.remove('hidden');
-        document.getElementById('pTitle').innerText = "玩家：" + myName;
+        document.getElementById('pTitle').innerText = "玩家: " + myName;
     };
 
-    // [同步監聽] 遊戲狀態變更
+    // [核心同步監聽]
     onValue(ref(db, 'game'), (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
 
-        // 主辦人視角：顯示題目與圖片
-        if (role === 'host' && data.currentQ >= 0) {
-            document.getElementById('qrcodeContainer').classList.add('hidden');
-            document.getElementById('playingContent').classList.remove('hidden');
-            
-            const q = data.quiz[data.currentQ];
-            if (q) {
-                document.getElementById('questionText').innerText = q.q;
-                const imgEl = document.getElementById('qImage');
-                if (q.img) {
-                    imgEl.src = q.img;
-                    imgEl.classList.remove('hidden');
+        if (role === 'host') {
+            if (data.currentQ >= 0) {
+                // 已開始出題：隱藏 QR Code，顯示題目區
+                document.getElementById('qrcodeContainer').classList.add('hidden');
+                document.getElementById('playingContent').classList.remove('hidden');
+                
+                const q = data.quiz[data.currentQ];
+                if (q) {
+                    document.getElementById('questionText').innerText = q.q;
+                    const imgEl = document.getElementById('qImage');
+                    if (q.img) {
+                        imgEl.src = q.img;
+                        imgEl.classList.remove('hidden');
+                    } else {
+                        imgEl.classList.add('hidden');
+                    }
                 } else {
-                    imgEl.classList.add('hidden');
+                    document.getElementById('questionText').innerText = "遊戲結束！";
+                    document.getElementById('qImage').classList.add('hidden');
                 }
-            } else {
-                document.getElementById('questionText').innerText = "🎉 遊戲結束！感謝參與！";
-                document.getElementById('qImage').classList.add('hidden');
             }
         }
 
-        // 玩家視角：同步顯示按鈕
         if (role !== 'host' && data.status === 'playing') {
             const q = data.quiz[data.currentQ];
             if (q) {
-                document.getElementById('pQText').innerText = "請選擇正確答案！";
+                document.getElementById('pQText').innerText = q.q;
                 let html = "";
                 q.a.forEach((opt, idx) => {
                     html += `<button class="option-btn" onclick="submitAnswer(${idx})">${opt}</button>`;
@@ -214,33 +217,34 @@
     window.submitAnswer = async function(idx) {
         const snap = await get(ref(db, 'game'));
         const game = snap.val();
-        const correct = game.quiz[game.currentQ].ans;
-
-        if (idx === correct) {
-            // 寫入答案紀錄以判定名次
+        if (idx === game.quiz[game.currentQ].ans) {
             const ansRef = push(ref(db, 'answers'));
             await set(ansRef, { name: myName, time: Date.now() });
-
-            // 取得當前是第幾個答對的
-            const allAnsSnap = await get(ref(db, 'answers'));
-            const rank = Object.keys(allAnsSnap.val()).length;
-            const points = (rank === 1) ? 100 : 50; // 第一名 100，其餘 50
-
-            // 更新總分
+            
+            const allAns = (await get(ref(db, 'answers'))).val();
+            const count = Object.keys(allAns).length;
+            const points = (count === 1) ? 100 : 50; // 第一名 100 分，其餘 50 分
+            
             const sRef = ref(db, `scores/${myName}`);
             const curS = (await get(sRef)).val() || 0;
             set(sRef, curS + points);
-
-            document.getElementById('pOptions').innerHTML = `<h2 style="color:green">✅ 答對了！<br>獲得 ${points} 分</h2>`;
+            document.getElementById('pOptions').innerHTML = "<h2 style='color:green'>✅ 答對了！等待下一題</h2>";
         } else {
-            alert("答錯囉！再觀察一下圖片或題目。");
+            alert("答錯囉，再試試看！");
         }
     };
 
-    // [主辦人] 監聽排行榜即時更新
+    // [排行榜] 主辦人畫面即時同步
     onValue(ref(db, 'scores'), (snapshot) => {
         if (role !== 'host') return;
         const scores = snapshot.val() || {};
         const sorted = Object.entries(scores).sort((a,b) => b[1] - a[1]);
-        
-        let html =
+        let html = "";
+        sorted.forEach(([name, score], i) => {
+            html += `<div class="rank-item"><span class="rank-number">#${i+1}</span> <span>${name}</span> <span class="rank-score">${score} pts</span></div>`;
+        });
+        document.getElementById('rankList').innerHTML = html;
+    });
+</script>
+</body>
+</html>
