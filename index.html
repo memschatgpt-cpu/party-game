@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全同步自動化 派對搶答王</title>
+    <title>專業互動版 派對搶答王</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f0f2f5; --dark: #2d3436; }
+        :root { --primary: #6c5ce7; --bg: #f0f2f5; --dark: #2d3436; --accent: #00b894; }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
         .hidden { display: none !important; }
         
@@ -17,23 +17,28 @@
 
         #qrcode { padding: 20px; background: white; display: inline-block; border-radius: 10px; margin: 20px auto; border: 1px solid #ddd; }
         
-        /* 圖片自適應縮放 */
-        .display-img { max-width: 100%; max-height: 300px; border-radius: 15px; margin: 15px auto; display: block; object-fit: contain; border: 1px solid #eee; }
+        /* 圖片自適應 */
+        .display-img { max-width: 100%; max-height: 300px; border-radius: 15px; margin: 15px auto; display: block; object-fit: contain; }
         
+        /* 排行榜 */
         .rank-item { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #444; font-size: 24px; align-items: center; }
         .rank-number { color: #fdcb6e; font-weight: bold; font-size: 30px; width: 50px; }
         .rank-score { color: #00cec9; font-weight: bold; }
 
         #timerBox { font-size: 36px; font-weight: bold; color: #e17055; margin-bottom: 10px; }
-        #correctAnsDisplay { font-size: 26px; color: #00b894; font-weight: bold; margin: 10px; padding: 10px; border: 2px dashed #00b894; border-radius: 10px; }
+        #correctAnsDisplay { font-size: 26px; color: var(--accent); font-weight: bold; margin: 10px; padding: 15px; border: 3px solid var(--accent); border-radius: 10px; background: #e6fffb; }
 
         input, button, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-size: 18px; font-weight: bold; }
-        .option-btn { background: #0984e3; height: 70px; font-size: 20px; margin: 5px 0; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; }
+        button:hover { opacity: 0.9; }
         
+        /* 玩家介面美化與對齊 */
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .option-btn { background: #0984e3; height: 100px; font-size: 20px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 10px; line-height: 1.4; }
+        
+        #pQText { color: #2d3436; margin: 15px 0; font-size: 24px; font-weight: bold; line-height: 1.5; }
+        #pFeedback { font-size: 26px; font-weight: bold; margin-top: 20px; }
         .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
-        #pFeedback { font-size: 24px; font-weight: bold; margin-top: 15px; }
-        #pQText { color: #2d3436; margin: 10px 0; font-size: 22px; }
     </style>
 </head>
 <body>
@@ -44,11 +49,10 @@
     <div class="setup-grid">
         <div><label>🥇 第一名得分：</label><input type="number" id="scoreFirst" value="10"></div>
         <div><label>🥈 之後答對得分：</label><input type="number" id="scoreOthers" value="5"></div>
-        <div><label>⏱️ 答題秒數：</label><input type="number" id="qSeconds" value="8"></div>
-        <div><label>👁️ 答案顯示秒數：</label><input type="number" id="showAnsSeconds" value="5"></div>
+        <div><label>⏱️ 答題秒數：</label><input type="number" id="qSeconds" value="10"></div>
     </div>
     <label>📝 題目 JSON：</label>
-    <textarea id="quizJson" rows="5">[{"q":"範例題目","a":["A","B","C","D"],"ans":0,"img":""}]</textarea>
+    <textarea id="quizJson" rows="5">[{"q":"範例題目","a":["選項 A","選項 B","選項 C","選項 D"],"ans":0,"img":""}]</textarea>
     <button onclick="initGame()">初始化遊戲並產生 QR Code</button>
 </div>
 
@@ -66,8 +70,8 @@
                 <div id="correctAnsDisplay" class="hidden"></div>
                 <img id="hostQImage" class="display-img hidden">
             </div>
-            <div id="hostControls" style="margin-top: 20px;">
-                <button id="startBtn" onclick="nextQuestion()" style="background:#00b894; width: 220px;">開始遊戲</button>
+            <div id="hostControls" style="margin-top: 30px;">
+                <button id="nextBtn" onclick="nextQuestion()" style="background:var(--accent); width: 250px;">開始遊戲</button>
             </div>
         </div>
         <div class="side-screen">
@@ -84,10 +88,10 @@
         <input type="text" id="playerName" placeholder="輸入你的暱稱"><button onclick="joinGame()">確認進入</button>
     </div>
     <div id="pGameSection" class="hidden">
-        <div id="pTimerDisplay" style="color: #e17055; font-weight: bold;">--</div>
+        <div id="pTimerDisplay" style="color: #e17055; font-weight: bold; font-size: 20px;">--</div>
         <h2 id="pQText">等待中...</h2>
         <img id="pQImage" class="display-img hidden">
-        <div id="pOptions"></div>
+        <div id="pOptions" class="options-grid"></div>
         <div id="pFeedback"></div>
     </div>
 </div>
@@ -121,8 +125,7 @@
             const config = {
                 s1: parseInt(document.getElementById('scoreFirst').value),
                 s2: parseInt(document.getElementById('scoreOthers').value),
-                sec: parseInt(document.getElementById('qSeconds').value),
-                ansSec: parseInt(document.getElementById('showAnsSeconds').value)
+                sec: parseInt(document.getElementById('qSeconds').value)
             };
             set(ref(db, 'game'), { status: 'waiting', currentQ: -1, quiz: quizData, config: config, timeLeft: config.sec });
             set(ref(db, 'answers'), {}); set(ref(db, 'scores'), {});
@@ -155,24 +158,11 @@
             set(ref(db, 'game/timeLeft'), localTime);
             if (localTime <= 0) {
                 clearInterval(timerInterval);
-                handleTimeout(game.config.ansSec);
+                set(ref(db, 'game/status'), 'showing_ans');
             }
         }, 1000);
-        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('nextBtn').classList.add('hidden'); // 開始計時後隱藏按鈕
     };
-
-    async function handleTimeout(ansSec) {
-        set(ref(db, 'game/status'), 'showing_ans');
-        let showAnsTime = ansSec;
-        const ansTimer = setInterval(() => {
-            showAnsTime--;
-            set(ref(db, 'game/timeLeft'), showAnsTime);
-            if (showAnsTime <= 0) {
-                clearInterval(ansTimer);
-                nextQuestion();
-            }
-        }, 1000);
-    }
 
     window.joinGame = function() {
         myName = document.getElementById('playerName').value.trim();
@@ -185,10 +175,9 @@
     onValue(ref(db, 'game'), (snapshot) => {
         const data = snapshot.val();
         if (!data) return;
-
         const currentQData = data.quiz[data.currentQ];
 
-        // 主辦人同步
+        // 主辦人邏輯
         if (role === 'host') {
             document.getElementById('timeLeft').innerText = data.timeLeft;
             if (data.currentQ >= 0) {
@@ -199,30 +188,33 @@
                 if (currentQData.img) { imgEl.src = currentQData.img; imgEl.classList.remove('hidden'); } else { imgEl.classList.add('hidden'); }
                 
                 if (data.status === 'showing_ans') {
-                    document.getElementById('timerStatus').innerText = "公佈答案倒數";
+                    document.getElementById('timerStatus').innerText = "時間到";
                     document.getElementById('correctAnsDisplay').innerText = "正確答案：" + currentQData.a[currentQData.ans];
                     document.getElementById('correctAnsDisplay').classList.remove('hidden');
+                    document.getElementById('nextBtn').innerText = (data.currentQ + 1 >= data.quiz.length) ? "查看總分" : "下一題";
+                    document.getElementById('nextBtn').classList.remove('hidden'); // 顯示按鈕供主持人手動點擊
                 } else {
                     document.getElementById('timerStatus').innerText = "剩餘答題時間";
                     document.getElementById('correctAnsDisplay').classList.add('hidden');
+                    document.getElementById('nextBtn').classList.add('hidden');
                 }
             }
-            if (data.status === 'ended') document.getElementById('questionText').innerText = "遊戲結束！";
+            if (data.status === 'ended') {
+                document.getElementById('questionText').innerText = "遊戲結束！";
+                document.getElementById('timerBox').classList.add('hidden');
+            }
         }
 
-        // 玩家端同步：增加題目與圖片顯示
+        // 玩家端邏輯
         if (role !== 'host') {
-            const feedbackEl = document.getElementById('pFeedback');
             const pQImage = document.getElementById('pQImage');
+            const feedbackEl = document.getElementById('pFeedback');
             
             if (data.status === 'playing') {
                 document.getElementById('pTimerDisplay').innerText = `剩餘時間：${data.timeLeft} 秒`;
-                
                 get(ref(db, `answers/${data.currentQ}_${myName}`)).then(ansSnap => {
                     if (ansSnap.exists()) return;
-                    
                     document.getElementById('pQText').innerText = currentQData.q;
-                    // 顯示圖片
                     if (currentQData.img) { pQImage.src = currentQData.img; pQImage.classList.remove('hidden'); } 
                     else { pQImage.classList.add('hidden'); }
 
@@ -233,11 +225,11 @@
                     document.getElementById('pOptions').innerHTML = html;
                     feedbackEl.innerText = "";
                 });
-            } else if (data.status === 'showing_ans' || data.status === 'timeout') {
+            } else {
                 document.getElementById('pOptions').innerHTML = "";
-                document.getElementById('pQText').innerText = "本題結束，請看大螢幕答案";
-                document.getElementById('pTimerDisplay').innerText = `下一題準備中...`;
-                pQImage.classList.add('hidden'); // 結束後隱藏圖片
+                document.getElementById('pQText').innerText = (data.status === 'ended') ? "遊戲已結束" : "本題結束，看大螢幕！";
+                document.getElementById('pTimerDisplay').innerText = `等待主持人...`;
+                pQImage.classList.add('hidden');
             }
         }
     });
