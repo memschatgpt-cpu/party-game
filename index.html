@@ -273,3 +273,11 @@
         if (role !== 'host') return;
         const sorted = Object.entries(snapshot.val() || {}).sort((a,b) => b[1] - a[1]);
         let html = "";
+        sorted.forEach(([name, score], i) => {
+            html += `<div class="rank-item"><span class="rank-number">#${i+1}</span> <span>${name}</span> <span class="rank-score">${score} pts</span></div>`;
+        });
+        document.getElementById('rankList').innerHTML = html;
+    });
+</script>
+</body>
+</html>
