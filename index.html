@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>專業互動版 派對搶答王</title>
+    <title>豪華版 派對搶答王</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root { --primary: #6c5ce7; --bg: #f0f2f5; --dark: #2d3436; --accent: #00b894; }
+        :root { --primary: #6c5ce7; --bg: #f0f2f5; --dark: #2d3436; --accent: #00b894; --correct: #00b894; }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
         .hidden { display: none !important; }
         
@@ -16,8 +16,6 @@
         .side-screen { flex: 1; background: var(--dark); color: white; padding: 20px; border-radius: 20px; min-height: 600px; }
 
         #qrcode { padding: 20px; background: white; display: inline-block; border-radius: 10px; margin: 20px auto; border: 1px solid #ddd; }
-        
-        /* 圖片自適應 */
         .display-img { max-width: 100%; max-height: 300px; border-radius: 15px; margin: 15px auto; display: block; object-fit: contain; }
         
         /* 排行榜 */
@@ -26,27 +24,36 @@
         .rank-score { color: #00cec9; font-weight: bold; }
 
         #timerBox { font-size: 36px; font-weight: bold; color: #e17055; margin-bottom: 10px; }
-        #correctAnsDisplay { font-size: 26px; color: var(--accent); font-weight: bold; margin: 10px; padding: 15px; border: 3px solid var(--accent); border-radius: 10px; background: #e6fffb; }
 
         input, button, textarea { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; }
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; }
-        button:hover { opacity: 0.9; }
         
-        /* 條列式排列樣式 */
+        /* 選項清單樣式 */
         .options-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
-        .option-btn, .host-option { background: #0984e3; min-height: 60px; font-size: 20px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 15px; line-height: 1.4; border-radius: 8px; color: white; }
+        .option-btn, .host-option { min-height: 60px; font-size: 22px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 15px; line-height: 1.4; border-radius: 12px; color: white; transition: all 0.4s ease; }
         
-        /* 主持人端選項純顯示，不具備點擊感 */
-        .host-option { background: #636e72; font-weight: bold; }
+        /* 玩家端按鈕顏色 */
+        .option-btn { background: #0984e3; border: none; }
+        
+        /* 主持人端選項預設顏色（灰色） */
+        .host-option { background: #636e72; font-weight: bold; border: 4px solid transparent; }
 
-        #pQText, #questionText { color: #2d3436; margin: 15px 0; font-size: 24px; font-weight: bold; line-height: 1.5; }
+        /* 正確答案亮起樣式 */
+        .host-option.is-correct { 
+            background: var(--correct) !important; 
+            transform: scale(1.05); 
+            border: 4px solid #fff; 
+            box-shadow: 0 0 20px rgba(0, 184, 148, 0.6); 
+            font-size: 26px;
+        }
+
+        #pQText, #questionText { color: #2d3436; margin: 15px 0; font-size: 26px; font-weight: bold; line-height: 1.5; }
         #pFeedback { font-size: 26px; font-weight: bold; margin-top: 20px; }
         .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
     </style>
 </head>
 <body>
 
-<!-- 設定區 -->
 <div id="setupView" class="main-screen" style="max-width: 800px; margin: 0 auto; display: none;">
     <h1>⚙️ 遊戲設定</h1>
     <div class="setup-grid">
@@ -59,7 +66,6 @@
     <button onclick="initGame()">初始化遊戲並產生 QR Code</button>
 </div>
 
-<!-- 主辦人畫面 -->
 <div id="gameView" class="hidden">
     <div class="game-layout">
         <div class="main-screen">
@@ -71,9 +77,8 @@
                 <div id="timerBox"><span id="timerStatus">剩餘時間</span>：<span id="timeLeft">--</span></div>
                 <h1 id="questionText">載入中...</h1>
                 <img id="hostQImage" class="display-img hidden">
-                <!-- 主持人螢幕增加選項顯示區 -->
+                <!-- 主持人螢幕選項 -->
                 <div id="hostOptions" class="options-list"></div>
-                <div id="correctAnsDisplay" class="hidden"></div>
             </div>
             <div id="hostControls" style="margin-top: 30px;">
                 <button id="nextBtn" onclick="nextQuestion()" style="background:var(--accent); width: 250px;">開始遊戲</button>
@@ -86,7 +91,6 @@
     </div>
 </div>
 
-<!-- 玩家端介面 -->
 <div id="playerView" class="main-screen hidden" style="max-width: 500px; margin: 0 auto;">
     <h1 id="pTitle">加入遊戲</h1>
     <div id="loginSection">
@@ -182,7 +186,6 @@
         if (!data) return;
         const currentQData = data.quiz[data.currentQ];
 
-        // 主辦人邏輯
         if (role === 'host') {
             document.getElementById('timeLeft').innerText = data.timeLeft;
             if (data.currentQ >= 0) {
@@ -190,37 +193,34 @@
                 document.getElementById('playingContent').classList.remove('hidden');
                 document.getElementById('questionText').innerText = currentQData.q;
                 
-                // 顯示主持人端圖片
                 const imgEl = document.getElementById('hostQImage');
                 if (currentQData.img) { imgEl.src = currentQData.img; imgEl.classList.remove('hidden'); } else { imgEl.classList.add('hidden'); }
                 
-                // 主持人端同步顯示選項
+                // 渲染主持人端選項
                 let hostOptHtml = "";
-                currentQData.a.forEach((opt) => {
-                    hostOptHtml += `<div class="host-option">${opt}</div>`;
+                currentQData.a.forEach((opt, idx) => {
+                    // 如果狀態是公佈答案且是正確索引，加入 is-correct class
+                    const isCorrectClass = (data.status === 'showing_ans' && idx === currentQData.ans) ? 'is-correct' : '';
+                    hostOptHtml += `<div class="host-option ${isCorrectClass}">${opt}</div>`;
                 });
                 document.getElementById('hostOptions').innerHTML = hostOptHtml;
 
                 if (data.status === 'showing_ans') {
                     document.getElementById('timerStatus').innerText = "時間到";
-                    document.getElementById('correctAnsDisplay').innerText = "正確答案：" + currentQData.a[currentQData.ans];
-                    document.getElementById('correctAnsDisplay').classList.remove('hidden');
-                    document.getElementById('nextBtn').innerText = (data.currentQ + 1 >= data.quiz.length) ? "查看總分" : "下一題";
+                    document.getElementById('nextBtn').innerText = (data.currentQ + 1 >= data.quiz.length) ? "查看總結" : "下一題";
                     document.getElementById('nextBtn').classList.remove('hidden');
                 } else {
                     document.getElementById('timerStatus').innerText = "剩餘答題時間";
-                    document.getElementById('correctAnsDisplay').classList.add('hidden');
                     document.getElementById('nextBtn').classList.add('hidden');
                 }
             }
             if (data.status === 'ended') {
                 document.getElementById('questionText').innerText = "遊戲結束！";
-                document.getElementById('hostOptions').innerHTML = ""; // 隱藏選項
+                document.getElementById('hostOptions').innerHTML = "";
                 document.getElementById('timerBox').classList.add('hidden');
             }
         }
 
-        // 玩家端邏輯
         if (role !== 'host') {
             const pQImage = document.getElementById('pQImage');
             const feedbackEl = document.getElementById('pFeedback');
