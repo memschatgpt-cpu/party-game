@@ -32,11 +32,14 @@
         button { background: var(--primary); color: white; border: none; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.3s; }
         button:hover { opacity: 0.9; }
         
-        /* 玩家介面：1x4 條列式排列 */
+        /* 條列式排列樣式 */
         .options-list { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
-        .option-btn { background: #0984e3; min-height: 60px; font-size: 20px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 15px; line-height: 1.4; }
+        .option-btn, .host-option { background: #0984e3; min-height: 60px; font-size: 20px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 15px; line-height: 1.4; border-radius: 8px; color: white; }
         
-        #pQText { color: #2d3436; margin: 15px 0; font-size: 24px; font-weight: bold; line-height: 1.5; }
+        /* 主持人端選項純顯示，不具備點擊感 */
+        .host-option { background: #636e72; font-weight: bold; }
+
+        #pQText, #questionText { color: #2d3436; margin: 15px 0; font-size: 24px; font-weight: bold; line-height: 1.5; }
         #pFeedback { font-size: 26px; font-weight: bold; margin-top: 20px; }
         .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
     </style>
@@ -67,8 +70,10 @@
             <div id="playingContent" class="hidden">
                 <div id="timerBox"><span id="timerStatus">剩餘時間</span>：<span id="timeLeft">--</span></div>
                 <h1 id="questionText">載入中...</h1>
-                <div id="correctAnsDisplay" class="hidden"></div>
                 <img id="hostQImage" class="display-img hidden">
+                <!-- 主持人螢幕增加選項顯示區 -->
+                <div id="hostOptions" class="options-list"></div>
+                <div id="correctAnsDisplay" class="hidden"></div>
             </div>
             <div id="hostControls" style="margin-top: 30px;">
                 <button id="nextBtn" onclick="nextQuestion()" style="background:var(--accent); width: 250px;">開始遊戲</button>
@@ -184,9 +189,18 @@
                 document.getElementById('qrcodeContainer').classList.add('hidden');
                 document.getElementById('playingContent').classList.remove('hidden');
                 document.getElementById('questionText').innerText = currentQData.q;
+                
+                // 顯示主持人端圖片
                 const imgEl = document.getElementById('hostQImage');
                 if (currentQData.img) { imgEl.src = currentQData.img; imgEl.classList.remove('hidden'); } else { imgEl.classList.add('hidden'); }
                 
+                // 主持人端同步顯示選項
+                let hostOptHtml = "";
+                currentQData.a.forEach((opt) => {
+                    hostOptHtml += `<div class="host-option">${opt}</div>`;
+                });
+                document.getElementById('hostOptions').innerHTML = hostOptHtml;
+
                 if (data.status === 'showing_ans') {
                     document.getElementById('timerStatus').innerText = "時間到";
                     document.getElementById('correctAnsDisplay').innerText = "正確答案：" + currentQData.a[currentQData.ans];
@@ -201,6 +215,7 @@
             }
             if (data.status === 'ended') {
                 document.getElementById('questionText').innerText = "遊戲結束！";
+                document.getElementById('hostOptions').innerHTML = ""; // 隱藏選項
                 document.getElementById('timerBox').classList.add('hidden');
             }
         }
@@ -227,7 +242,6 @@
                 });
             } else {
                 document.getElementById('pOptions').innerHTML = "";
-                // 判斷遊戲是否剛開始或是已結束
                 if (data.currentQ === -1) {
                     document.getElementById('pQText').innerText = "遊戲準備中，請稍候...";
                 } else if (data.status === 'ended') {
